@@ -1,0 +1,120 @@
+# GovAI Shield — fundação para Red Hat Developer Sandbox (OCP real, sem cluster-admin).
+# Ajustes vs. c-foundation.yaml: (1) SEM metadata.namespace (use: oc apply -n $NS -f ...);
+# (2) Postgres = bitnami (arbitrary-user friendly no SCC restricted-v2);
+# (3) imagem do gateway em quay.io público (troque __QUAY_USER__ pelo seu user do quay).
+# Apply:  NS=$(oc project -q); oc apply -n $NS -f deploy/openshift/c-foundation-sandbox.yaml
+---
+apiVersion: v1
+kind: Secret
+metadata: { name: govaishield-db-credentials }
+type: Opaque
+stringData:
+  POSTGRES_USER: "govaishield"
+  POSTGRES_PASSWORD: "DevChangeMe#2026"
+---
+apiVersion: v1
+kind: Secret
+metadata: { name: govaishield-jwt }
+type: Opaque
+stringData:
+  JWT_SECRET: "dev-only-256bit-secret-change-me-please-xxxx"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: govaishield-config }
+data:
+  APP_ENV: "dev"
+  APP_LOG_FORMAT: "json"
+  APP_PORT: "8080"                 # canônico dentro do cluster (sem HUB-Gov)
+  POSTGRES_HOST: "govaishield-pg" # nome curto do Service (resolve no mesmo namespace)
+  POSTGRES_PORT: "5432"
+  READY_CHECKS: "postgres"
+---
+apiVersion: v1
+kind: Service
+metadata: { name: govaishield-pg }
+spec:
+  selector: { app: govaishield-pg }
+  ports: [{ name: postgres, port: 5432, targetPort: 5432 }]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: { name: govaishield-pg }
+spec:
+  serviceName: govaishield-pg
+  replicas: 1
+  selector: { matchLabels: { app: govaishield-pg } }
+  template:
+    metadata: { labels: { app: govaishield-pg } }
+    spec:
+      securityContext: { runAsNonRoot: true }   # SEM fsGroup fixo: o SCC restricted-v2 injeta o gid; a bitnami grava via gid suplementar
+      containers:
+        - name: postgres
+          image: docker.io/bitnami/postgresql:16
+          ports: [{ containerPort: 5432, name: postgres }]
+          env:
+            - { name: POSTGRESQL_DATABASE, value: govaishield }
+            - { name: POSTGRESQL_USERNAME, valueFrom: { secretKeyRef: { name: govaishield-db-credentials, key: POSTGRES_USER } } }
+            - { name: POSTGRESQL_PASSWORD, valueFrom: { secretKeyRef: { name: govaishield-db-credentials, key: POSTGRES_PASSWORD } } }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+          # readOnlyRootFilesystem OMITIDO de propósito: a bitnami grava em /opt/bitnami e /tmp no boot
+          livenessProbe:  { exec: { command: ["sh","-c","pg_isready -U $POSTGRESQL_USERNAME -d $POSTGRESQL_DATABASE"] }, initialDelaySeconds: 20, periodSeconds: 20 }
+          readinessProbe: { exec: { command: ["sh","-c","pg_isready -U $POSTGRESQL_USERNAME -d $POSTGRESQL_DATABASE"] }, initialDelaySeconds: 10, periodSeconds: 10 }
+          volumeMounts: [{ name: pgdata, mountPath: /bitnami/postgresql }]
+  volumeClaimTemplates:
+    - metadata: { name: pgdata }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: 1Gi } }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: govaishield-api }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api-gateway }
+spec:
+  selector: { app: api-gateway }
+  ports: [{ name: http, port: 8080, targetPort: 8080 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api-gateway, labels: { app: api-gateway } }
+spec:
+  replicas: 1                      # 1 replica: sandbox tem quota apertada
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: api-gateway } }
+  template:
+    metadata: { labels: { app: api-gateway } }
+    spec:
+      serviceAccountName: govaishield-api
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: api-gateway
+          image: quay.io/__QUAY_USER__/api-gateway:latest   # <-- troque __QUAY_USER__ no VS Code (Ctrl+H)
+          imagePullPolicy: Always
+          ports: [{ containerPort: 8080, name: http }]
+          envFrom:
+            - configMapRef: { name: govaishield-config }
+            - secretRef: { name: govaishield-jwt }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 300m, memory: 192Mi }
+          securityContext: { allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: { drop: [ALL] } }
+          startupProbe:   { httpGet: { path: /api/v2/health/startup, port: 8080 }, failureThreshold: 30, periodSeconds: 2 }
+          livenessProbe:  { httpGet: { path: /api/v2/health,        port: 8080 }, initialDelaySeconds: 5, periodSeconds: 15 }
+          readinessProbe: { httpGet: { path: /api/v2/health/ready,  port: 8080 }, initialDelaySeconds: 3, periodSeconds: 5 }
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: api-gateway
+  annotations:
+    haproxy.router.openshift.io/hsts_header: "max-age=31536000;includeSubDomains;preload"
+spec:                                  # SEM spec.host: o router do sandbox gera o wildcard dele
+  to: { kind: Service, name: api-gateway }
+  port: { targetPort: http }
+  tls: { termination: edge, insecureEdgeTerminationPolicy: Redirect }
