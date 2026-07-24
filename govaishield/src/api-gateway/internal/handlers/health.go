@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/executt/govaishield/api-gateway/internal/config"
@@ -18,18 +19,21 @@ func Health() http.HandlerFunc {
 	}
 }
 
-// Ready checa dependências com TCP dial (zero dependência de driver).
+// Ready checa APENAS as dependências listadas em READY_CHECKS (default: postgres).
+// Deps não listadas não aparecem no resultado (não contam como "down").
+// Assim o serviço fica Ready no cluster mesmo antes de Kafka/Redis existirem.
 func Ready(cfg config.Config) http.HandlerFunc {
+	addrs := map[string]string{
+		"postgres": cfg.PGHost + ":" + cfg.PGPort,
+		"kafka":    first(cfg.Kafka),
+		"redis":    cfg.Redis,
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
-		checks := map[string]string{
-			"postgres": cfg.PGHost + ":" + cfg.PGPort,
-			"kafka":    first(cfg.Kafka),
-			"redis":    cfg.Redis,
-		}
-		allOK := true
 		result := map[string]string{}
-		for name, addr := range checks {
-			if addr == "" || addr == ":" {
+		allOK := true
+		for _, name := range cfg.ReadyChecks {
+			addr := addrs[name]
+			if addr == "" || addr == ":" || strings.HasPrefix(addr, ":") {
 				result[name] = "not_configured"
 				continue
 			}
@@ -46,7 +50,7 @@ func Ready(cfg config.Config) http.HandlerFunc {
 		if !allOK {
 			status = http.StatusServiceUnavailable
 		}
-		writeJSON(w, status, map[string]any{"status": boolOK(allOK), "deps": result})
+		writeJSON(w, status, map[string]any{"status": boolOK(allOK), "checks": cfg.ReadyChecks, "deps": result})
 	}
 }
 
