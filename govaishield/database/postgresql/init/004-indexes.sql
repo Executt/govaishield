@@ -1,0 +1,16 @@
+CREATE INDEX idx_usuarios_orgao ON admin.usuarios(orgao_id);
+CREATE INDEX idx_usuarios_cpf_hash ON admin.usuarios(cpf_hash);
+CREATE INDEX idx_providers_category ON core.ai_providers(category);
+CREATE INDEX idx_providers_risk ON core.ai_providers(risk_level);
+CREATE INDEX idx_providers_approved ON core.ai_providers(approved) WHERE approved = TRUE;
+CREATE INDEX idx_sigs_provider ON core.detection_signatures(provider_id);
+CREATE INDEX idx_sigs_type_value ON core.detection_signatures(sig_type, value);
+CREATE INDEX idx_events_orgao_date ON detection.events(orgao_id, detected_at DESC);
+CREATE INDEX idx_events_severity ON detection.events(severity) WHERE severity >= 4;
+CREATE INDEX idx_events_provider ON detection.events(provider_id, detected_at DESC);
+CREATE INDEX idx_events_status ON detection.events(status) WHERE status != 'RESOLVED';
+CREATE INDEX idx_events_dlp ON detection.events USING GIN(dlp_entities);
+CREATE INDEX idx_decisions_event ON policy.decisions(event_id);
+CREATE INDEX idx_decisions_date ON policy.decisions(evaluated_at DESC);
+CREATE INDEX idx_audit_orgao ON audit.trail(orgao_id, created_at DESC);
+CREATE INDEX idx_audit_hash ON audit.trail(hash);

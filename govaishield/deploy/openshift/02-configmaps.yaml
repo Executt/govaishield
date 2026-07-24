@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: govaishield-config, namespace: govaishield }
+data:
+  APP_ENV: "production"
+  APP_LOG_FORMAT: "json"
+  POSTGRES_HOST: "govaishield-pg-primary.govaishield.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  KAFKA_BROKERS: "govaishield-kafka-bootstrap.govaishield.svc.cluster.local:9092"
+  REDIS_HOST: "govaishield-redis.govaishield.svc.cluster.local"
+  OPA_URL: "http://policy-engine.govaishield.svc.cluster.local:8082"
+  DLP_ENGINE_URL: "http://dlp-engine.govaishield.svc.cluster.local:8081"
+  MTLS_ENABLED: "true"

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DetectionEvent",
+  "type": "object",
+  "required": ["event_id", "orgao_id", "detection_type", "severity", "detected_at"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "orgao_id": { "type": "string", "format": "uuid" },
+    "provider_id": { "type": ["string", "null"], "format": "uuid" },
+    "detection_type": { "enum": ["network", "dns", "process", "file", "ja4"] },
+    "source_ip": { "type": "string" },
+    "destination_ip": { "type": "string" },
+    "severity": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "dlp_action": { "enum": ["ALLOW", "ANONYMIZE", "BLOCK", null] },
+    "detected_at": { "type": "string", "format": "date-time" }
+  }
+}

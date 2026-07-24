@@ -1,0 +1,14 @@
+openapi: 3.1.0
+info: { title: GovAI Shield API, version: 2.0.0 }
+servers: [{ url: https://api.govaishield.gov.br/api/v2 }]
+paths:
+  /health:        { get: { summary: Liveness,  responses: { '200': { description: ok } } } }
+  /health/ready:  { get: { summary: Readiness, responses: { '200': { description: ok }, '503': { description: degraded } } } }
+  /version:       { get: { summary: Versão,    responses: { '200': { description: ok } } } }
+  /detection/events:
+    get:
+      summary: Listar eventos de detecção
+      parameters:
+        - { name: orgao, in: query, schema: { type: string } }
+        - { name: severity_gte, in: query, schema: { type: integer } }
+      responses: { '200': { description: ok }, '401': { description: unauthorized } }

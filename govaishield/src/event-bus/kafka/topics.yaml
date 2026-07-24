@@ -1,0 +1,6 @@
+topics:
+  - { name: detection.events,  partitions: 12, replication: 3, retention_ms: 604800000 }
+  - { name: policy.decisions,  partitions: 6,  replication: 3, retention_ms: 604800000 }
+  - { name: dlp.results,       partitions: 6,  replication: 3, retention_ms: 604800000 }
+  - { name: audit.log,         partitions: 6,  replication: 3, cleanup_policy: compact }
+  - { name: alerts,            partitions: 3,  replication: 3, retention_ms: 2592000000 }

@@ -1,0 +1,6 @@
+*                       @Executt
+/src/api-gateway/       @Executt
+/src/dlp-engine/        @Executt
+/src/policy-engine/     @Executt
+/deploy/openshift/      @Executt
+/database/              @Executt

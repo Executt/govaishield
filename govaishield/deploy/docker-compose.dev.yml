@@ -1,0 +1,16 @@
+version: "3.9"
+# Sobe a infra + os serviços da aplicação em modo dev.
+# Requer: deploy/docker-compose.infra.yml rodando (ou rode com -f infra -f dev)
+services:
+  api-gateway:
+    build: ../src/api-gateway
+    environment:
+      APP_PORT: "8080"
+      POSTGRES_HOST: postgres
+      KAFKA_BROKERS: kafka:9092
+      REDIS_HOST: redis
+    ports: ["8080:8080"]
+    depends_on: [postgres, kafka, redis]
+  dlp-engine:
+    build: ../src/dlp-engine
+    ports: ["8081:8081"]

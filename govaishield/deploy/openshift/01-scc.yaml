@@ -1,0 +1,20 @@
+# SCC customizado para o Detection Agent (eBPF). Só o ServiceAccount do agente usa.
+# Aplique com cluster-admin. Em produção prefira aprovar via processo de mudança.
+apiVersion: security.openshift.io/v1
+kind: SecurityContextConstraints
+metadata:
+  name: govaishield-ebpf
+allowHostDirVolumePlugin: true
+allowHostNetwork: true
+allowHostPID: true
+allowPrivilegedContainer: true
+readOnlyRootFilesystem: true
+runAsUser: { type: RunAsAny }
+seLinuxContext: { type: RunAsAny }
+fsGroup: { type: RunAsAny }
+supplementalGroups: { type: RunAsAny }
+requiredDropCapabilities: [ALL]
+allowedCapabilities: [SYS_ADMIN, NET_ADMIN, NET_RAW, BPF, PERFMON, SYS_PTRACE]
+volumes: [configMap, secret, emptyDir, hostPath, projected, downwardAPI]
+users:
+  - system:serviceaccount:govaishield:govaishield-agent

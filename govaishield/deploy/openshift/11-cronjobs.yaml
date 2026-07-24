@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: pg-create-partition, namespace: govaishield }
+spec:
+  schedule: "0 2 15 * *"   # dia 15 de cada mês cria a partição do mês seguinte
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: psql
+              image: postgres:16-alpine
+              command: ["sh","-c","psql $DATABASE_URL -c 'SELECT detection.create_monthly_partition();'"]
+              env:
+                - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: govaishield-db-credentials, key: DATABASE_URL } } }

@@ -1,0 +1,6 @@
+{
+  "approved_providers": {
+    "nacionais": ["maritaca-mara", "sabia-3"],
+    "homologados": ["maritaca-mara", "sabia-3", "enterprise-copilot-gov"]
+  }
+}

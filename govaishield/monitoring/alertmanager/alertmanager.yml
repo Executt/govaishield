@@ -1,0 +1,10 @@
+global: { resolve_timeout: 5m }
+route:
+  receiver: soc
+  group_by: ['alertname', 'orgao']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+receivers:
+  - name: soc
+    webhook_configs: [{ url: 'http://soc-bridge.govaishield.svc:9000/alerts' }]

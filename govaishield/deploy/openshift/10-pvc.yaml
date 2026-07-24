@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: { name: minio-audit, namespace: govaishield }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources: { requests: { storage: 500Gi } }
+  storageClassName: ocs-storagecluster-ceph-rbd   # ajuste ao seu cluster

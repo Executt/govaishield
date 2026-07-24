@@ -1,0 +1,21 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: api-gateway
+  namespace: govaishield
+  annotations:
+    haproxy.router.openshift.io/hsts_header: "max-age=31536000;includeSubDomains;preload"
+spec:
+  host: api.govaishield.apps.cluster.example.com
+  to: { kind: Service, name: api-gateway }
+  port: { targetPort: http }
+  tls: { termination: edge, insecureEdgeTerminationPolicy: Redirect }
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata: { name: transparency-portal, namespace: govaishield }
+spec:
+  host: transparencia.govaishield.apps.cluster.example.com
+  to: { kind: Service, name: transparency-portal }
+  port: { targetPort: http }
+  tls: { termination: edge, insecureEdgeTerminationPolicy: Redirect }

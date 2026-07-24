@@ -1,0 +1,6 @@
+title = "govaishield gitleaks config"
+[extend]
+useDefault = true
+[allowlist]
+paths = ['''(^|/)tests/''', '''\.md$''']
+regexes = ['''ghp_[A-Za-z0-9_]{0,3}X+''']   # exemplos mascarados

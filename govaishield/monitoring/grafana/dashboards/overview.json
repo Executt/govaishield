@@ -1,0 +1,17 @@
+{
+  "title": "GovAI Shield — Overview",
+  "schemaVersion": 39,
+  "timezone": "America/Sao_Paulo",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Eventos de detecção por severidade",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum by (severity) (rate(govaishield_detection_events_total[5m]))", "legendFormat": "sev {{severity}}" }
+      ]
+    }
+  ],
+  "time": { "from": "now-6h", "to": "now" }
+}

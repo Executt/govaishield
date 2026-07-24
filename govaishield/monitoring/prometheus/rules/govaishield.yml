@@ -1,0 +1,14 @@
+groups:
+  - name: govaishield
+    rules:
+      - alert: ShadowAISpike
+        expr: rate(govaishield_detection_events_total{severity="5"}[5m]) > 100
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Pico de Shadow AI crítico"
+      - alert: DLPBlockActive
+        expr: increase(govaishield_dlp_blocked_total[1m]) > 0
+        labels: { severity: high }
+        annotations:
+          summary: "Tentativa de exfiltração via IA bloqueada"

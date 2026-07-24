@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata: { name: govaishield-api, namespace: govaishield }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: govaishield
+  labels: { app: api-gateway }
+spec:
+  replicas: 3
+  strategy: { type: RollingUpdate, rollingUpdate: { maxSurge: 1, maxUnavailable: 0 } }
+  selector: { matchLabels: { app: api-gateway } }
+  template:
+    metadata:
+      labels: { app: api-gateway }
+      annotations:
+        checksum/config: "replace-with-hash"
+    spec:
+      serviceAccountName: govaishield-api
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: api-gateway
+          image: image-registry.openshift-image-registry.svc:5000/govaishield/api-gateway:latest
+          ports: [{ containerPort: 8080, name: http }]
+          envFrom:
+            - configMapRef: { name: govaishield-config }
+            - secretRef: { name: govaishield-db-credentials }
+            - secretRef: { name: govaishield-jwt }
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits:   { cpu: "1",  memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          livenessProbe:
+            httpGet: { path: /api/v2/health, port: 8080 }
+            initialDelaySeconds: 10, periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /api/v2/health/ready, port: 8080 }
+            initialDelaySeconds: 5, periodSeconds: 10
+          startupProbe:
+            httpGet: { path: /api/v2/health/startup, port: 8080 }
+            failureThreshold: 30, periodSeconds: 5
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dlp-engine
+  namespace: govaishield
+  labels: { app: dlp-engine }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: dlp-engine } }
+  template:
+    metadata: { labels: { app: dlp-engine } }
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: dlp-engine
+          image: image-registry.openshift-image-registry.svc:5000/govaishield/dlp-engine:latest
+          ports: [{ containerPort: 8081, name: http }]
+          envFrom: [{ configMapRef: { name: govaishield-config } }]
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits:   { cpu: "1",  memory: 768Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          livenessProbe:  { httpGet: { path: /health, port: 8081 }, periodSeconds: 15 }
+          readinessProbe: { httpGet: { path: /health, port: 8081 }, periodSeconds: 10 }
+---
+# Detection Agent: DaemonSet (1 por node) com SCC de eBPF
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: govaishield-agent
+  namespace: govaishield
+  labels: { app: govaishield-agent }
+spec:
+  selector: { matchLabels: { app: govaishield-agent } }
+  template:
+    metadata: { labels: { app: govaishield-agent } }
+    spec:
+      serviceAccountName: govaishield-agent
+      hostPID: true
+      hostNetwork: true
+      tolerations: [{ operator: Exists }]
+      containers:
+        - name: agent
+          image: image-registry.openshift-image-registry.svc:5000/govaishield/detection-agent:latest
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: true
+            capabilities: { add: [SYS_ADMIN, NET_ADMIN, NET_RAW, BPF, PERFMON, SYS_PTRACE] }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 256Mi }
+          volumeMounts:
+            - { name: bpf, mountPath: /sys/fs/bpf }
+            - { name: proc, mountPath: /host/proc, readOnly: true }
+      volumes:
+        - { name: bpf, hostPath: { path: /sys/fs/bpf, type: DirectoryOrCreate } }
+        - { name: proc, hostPath: { path: /proc, type: Directory } }
